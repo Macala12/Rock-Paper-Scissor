@@ -81,6 +81,7 @@ roomID = Math.random().toString(36);
 
 const sessionRoom = sessionStorage.getItem("roomID");
 const realPlayer = sessionStorage.getItem("player");
+const connect = 'https://octagames-rock-paper-scissor.onrender.com/';
 
 
 if (!sessionRoom) {
@@ -108,7 +109,7 @@ let isPreviousChoice = false;
 let player1Chose, player2Chose;
 
 ///Socket
-const socket = io.connect( "http://localhost:4000/", { secure: true, transports: [ "flashsocket","polling","websocket" ] } );
+const socket = io.connect( `${connect}`, { secure: true, transports: [ "flashsocket","polling","websocket" ] } );
 
 const createRoom = (isReload) => {
   const roomID = sessionStorage.getItem("roomID");
