@@ -470,7 +470,7 @@ body {
   font-weight: 600;
 }
 
-.join {
+.join, .end {
   display: flex;
   place-items: center;
   position: absolute;
@@ -481,7 +481,7 @@ body {
   background-image: radial-gradient(at top, #1f3656, #172041);
 }
 
-.join__container {
+.join__container, .end__container {
   height: auto;
   padding: 2rem;
   margin: auto;
@@ -489,7 +489,7 @@ body {
   /* border: 2px solid var(--dark-text); */
 }
 
-.join__container h5{
+.join__container h5, .end__container h5{
   font-size: 22px;
   color: #fff;
 }

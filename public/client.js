@@ -1,7 +1,7 @@
 const urlParams = new URLSearchParams(window.location.search);
 const player = urlParams.get("player");
-const roomUrlId = urlParams.get("id");
-const tournamentID = "68a64d526223e4d5e74daaea";
+const roomUrlId = urlParams.get("roomId");
+const tournamentID = urlParams.get("id");
 
 const gameArea = document.querySelector(".main");
 const rock = document.querySelector(".choice__rock");
@@ -79,10 +79,16 @@ closeRules.addEventListener("click", () => {
 let roomID;
 roomID = Math.random().toString(36);
 
+const tournamentIDStored = sessionStorage.getItem("id");
 const sessionRoom = sessionStorage.getItem("roomID");
 const realPlayer = sessionStorage.getItem("player");
-const connect = 'https://octagames-rock-paper-scissor.onrender.com/';
+const connect = 'http://localhost:4000/';
 
+if (!tournamentIDStored) {
+    sessionStorage.setItem("id", tournamentID);
+} else if (tournamentIDStored !== tournamentID) {
+      sessionStorage.setItem("id", tournamentID);
+}
 
 if (!sessionRoom) {
   sessionStorage.setItem("roomID", roomUrlId);
@@ -113,11 +119,13 @@ const socket = io.connect( `${connect}`, { secure: true, transports: [ "flashsoc
 
 const createRoom = (isReload) => {
   const roomID = sessionStorage.getItem("roomID");
+  const tournamentID = sessionStorage.getItem("id");
 
   if (roomID) {
     socket.emit("createRoom", { 
       tournamentId: tournamentID, 
-      roomID: roomID 
+      roomID: roomID,
+      player: player1 
     });
     console.log(roomID); 
   }
@@ -127,8 +135,21 @@ const createRoom = (isReload) => {
   }
 };
 
+socket.on("wrongRoomCorrection", ({actual_match_id}) => {
+    window.location.href = `http://localhost:4000/?player=${player}&id=${actual_match_id}`;
+});
+
+socket.on("Room is Invalid or This is not your Room", (data) => {
+  console.log("Server says room is invalid:", data);
+    const joinContainer = document.querySelector(".join__container");
+    joinContainer.innerHTML = `
+        <h5>Room is Invalid or This is not your Room</h5>
+    `;
+});
+
 const joinRoom = () => {
   const roomID = sessionStorage.getItem("roomID");
+  const tournamentID = sessionStorage.getItem("id");
   console.log(roomID);
   
   if (!roomID) {
@@ -250,6 +271,8 @@ if (player && roomUrlId) {
 
 const sendChoice = (rpschoice, opponent) => {
   const roomID = sessionStorage.getItem("roomID");
+  const tournamentID = sessionStorage.getItem("id");
+
   let player;
   if (player1 !== opponent) {
     player = "p1Choice";
@@ -607,6 +630,7 @@ const removeWinner = () => {
 
 const playAgain = () => {
   const roomID = sessionStorage.getItem("roomID");
+  const tournamentID = sessionStorage.getItem("id");
 
   socket.emit("playerClicked", {
     tournamentId: tournamentID,
@@ -626,6 +650,12 @@ socket.on("waitingNewPlayer", (data) => {
   document.querySelector(".searchingText").classList.add('loading');
 });
 
+socket.on("endOldRoom", (data) => {
+    const roomID = sessionStorage.getItem("roomID");
+    const tournamentID = sessionStorage.getItem("id");
+    socket.emit("endTournamentRoom", { tournamentId: tournamentID, roomId: roomID});
+});
+
 socket.on("playAgain", (data) => {
   roomID = data.roomID;
   console.log(data);
@@ -635,6 +665,14 @@ socket.on("playAgain", (data) => {
 
   removeWinner();
   returnToGame();
+});
+
+socket.on("tournamentHasEnded", (data) => {
+  console.log("ended");
+  sessionStorage.removeItem("player");
+  sessionStorage.removeItem("roomID");
+  sessionStorage.removeItem("id");
+  window.location.href = `http://localhost:4000/end.html`;
 });
 
 const returnToLogin = () => {

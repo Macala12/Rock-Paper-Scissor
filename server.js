@@ -1,12 +1,23 @@
 import { fileURLToPath } from "url"; 
 import path from "path"; 
-import { Server } from "socket.io"; 
+import { Server } from "socket.io";
+
 import mongoose from "mongoose";
 import express from "express";
 import Leaderboard from "./models/Leaderboard.js";
 import fetchPlayers from "./controller/fetch_players.js";
+import cors from "cors";
 
 const app = express();
+
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:4000"],  // or "*" to allow all
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+app.use(express.json());
+
 const PORT = process.env.PORT || 4000;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -26,17 +37,9 @@ const server = app.listen(PORT, () => {
 
 const io = new Server(server);
 
-let playersDbs;
-
 mongoose.connect("mongodb+srv://michael-user-1:Modubass1212@assetron.tdmvued.mongodb.net/octagames")
 .then(() => {
-    console.log("MongoDB Connected");
-    return fetchPlayers("68a64d526223e4d5e74daaea");
-})
-.then(playersDb => {
-    playersDbs = playersDb;
-    const round = createRound(playersDb, "68a64d526223e4d5e74daaea");
-    console.log(round);
+  console.log("MongoDB Connected");
 })
 .catch(err => console.log("DB Connection Error:", err));
 
@@ -64,7 +67,16 @@ function shuffleArray(array) {
 }
 
 function createRound(players, tournamentId) {
-  const { rooms, allPlayers } = getTournament(tournamentId);
+  const tournament = getTournament(tournamentId);
+  if (!tournament) {
+    return { success: false, message: "Tournament not found" };
+  }
+
+  if (!players || players.length < 2) {
+    return { success: false, message: "Not enough players to create a round" };
+  }
+
+  const { rooms, allPlayers } = tournament;
   const shuffledPlayers = shuffleArray(players); 
 
   for (let i = 0; i < shuffledPlayers.length; i += 2) {
@@ -83,37 +95,93 @@ function createRound(players, tournamentId) {
     });
   }
 
-  playersDbs.forEach(player => {
+  // Mark all players as occupied
+  players.forEach(player => {
     allPlayers.set(player.username, "occupied");
   });  
 
-  return rooms;
+  return { success: true, message: "Round created", rooms };
 }
+
+app.post("/api/create", async (req, res) => {
+  try {
+    const { tournamentId } = req.body;    
+
+    if (!tournamentId) {
+      return res.status(400).json({ error: "Missing tournamentId" });
+    }
+
+    const players = await fetchPlayers(tournamentId);
+
+    if (!players.success) {
+      return res.status(404).json({ error: players.message });
+    }    
+  
+    const result = createRound(players.players, tournamentId);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.message });
+    }
+
+    return res.json({
+      success: true,
+      message: result.message,
+      rooms: result.rooms // optional, useful if frontend needs to know
+    });
+
+  } catch (error) {
+    console.error("Error creating tournament round:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.post("/api/end", async (req, res) => {
+try {
+    const { tournamentId } = req.body;
+
+    if (!tournamentId) {
+      return res.status(400).json({ error: "Missing tournamentId" });
+    }
+
+    const result = endTournament(tournamentId);
+
+    if (!result.success) {
+      return res.status(404).json({ error: result.message });
+    }
+
+    return res.json({
+      success: true,
+      message: result.message
+    });
+
+  } catch (error) {
+    console.error("Error ending tournament:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 io.on("connection", (socket) => {
   console.log("client connected");
 
   socket.on("disconnect", () => {
-    console.log("Client disconnected");
+    // console.log("Client disconnected");
   });
 
-  socket.on("createRoom", ({ tournamentId, roomID }) => {
+  socket.on("createRoom", ({ tournamentId, roomID, player }) => {
     const { rooms } = getTournament(tournamentId);
 
     console.log("Tournament ID: ",tournamentId);
     
     let existingRoom = rooms.find(r => r.room_id === roomID);
     if (!existingRoom) {
-      rooms.push({
-        room_id: roomID,
-        p1: "michael",
-        p2: "david",
-        p1Choice: null,
-        p2Choice: null,
-        p1Score: 0,
-        p2Score: 0
-      });
-      console.log(`Created new room: ${roomID} in tournament ${tournamentId}`);
+      let playersRoom = rooms.find((room) => room.p1 === player || room.p2 === player);
+
+      if (playersRoom) {
+        const actual_match_id = playersRoom.room_id;
+        io.to(socket.id).emit("wrongRoomCorrection", actual_match_id);
+      } else{
+        return socket.emit("Room is Invalid or This is not your Room");
+      }
     } else {
       console.log(`Room ${roomID} already exists in tournament ${tournamentId}`);
     }
@@ -174,7 +242,7 @@ io.on("connection", (socket) => {
         console.error("Error updating winner:", err);
       }
     } else {
-      return socket.emit("Not your room");
+      return socket.emit("Room is Invalid or This is not your Room");
     }
   });
 
@@ -394,4 +462,56 @@ function createRoom(tournamentId, newroomID, oldroomID, player1, player2, socket
 
   rooms.push(newRoom);
   socket.join(newroomID);
+}
+
+function endTournament(tournamentId) {
+  const tournament = getTournament(tournamentId);
+  if (!tournament) {
+    return { success: false, message: "Tournament not found" };
+  }
+  
+  // Loop through all rooms in this tournament
+  tournament.rooms.forEach(room => {
+    console.log("room to be removed: ", room);
+
+    const players = [
+      { username: room.p1, socketId: room.p1SocketId, room_id: room.room_id },
+      { username: room.p2, socketId: room.p2SocketId, room_id: room.room_id }
+    ];
+
+    players.forEach(async player => {
+
+      console.log("Room Id: ", player.room_id);      
+
+      io.to(player.room_id).emit("tournamentHasEnded", {
+        roomId: player.room_id,
+        tournamentId,
+        message: "The tournament has ended."
+      });
+
+      const socketsInRoom = await io.in(room.room_id).fetchSockets();
+      for (const socket of socketsInRoom) {
+        socket.leave(room.room_id);
+      }
+    });
+
+  });
+
+  // Clear all rooms from the tournament
+  tournament.rooms = [];
+
+  // Optionally, delete the tournament entirely
+  deleteTournament(tournamentId); // <-- implement this function to remove from memory/DB
+
+  console.log(`Tournament ${tournamentId} has ended and all rooms removed.`);
+  return { success: true, message: "Tournament ended successfully" };
+}
+
+function deleteTournament(tournamentId) {
+  if (tournaments[tournamentId]) {
+    delete tournaments[tournamentId];
+    console.log(`Tournament ${tournamentId} deleted from memory.`);
+  } else {
+    console.log(`Tournament ${tournamentId} not found.`);
+  }
 }
