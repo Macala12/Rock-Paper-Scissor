@@ -16,8 +16,6 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-app.use(express.json());
-
 const PORT = process.env.PORT || 4000;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,8 +25,70 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(express.static(path.join(__dirname, "view")));
 app.use(express.static(path.join(__dirname, "images")));
 
+app.use(express.json());
+
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "", "index.html"));
+});
+
+app.post("/api/create", async (req, res) => {
+  
+  try {
+    const { tournamentId } = req.body;    
+    console.log("Hitting");
+    
+    if (!tournamentId) {
+      return res.status(400).json({ error: "Missing tournamentId" });
+    }
+
+    const players = await fetchPlayers(tournamentId);
+
+    if (!players.success) {
+      return res.status(404).json({ error: players.message });
+    }    
+  
+    const result = createRound(players.players, tournamentId);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.message });
+    }
+
+    return res.json({
+      success: true,
+      message: result.message,
+      rooms: result.rooms // optional, useful if frontend needs to know
+    });
+
+  } catch (error) {
+    console.error("Error creating tournament round:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.post("/api/end", async (req, res) => {
+try {
+    const { tournamentId } = req.body;
+
+    if (!tournamentId) {
+      return res.status(400).json({ error: "Missing tournamentId" });
+    }
+
+    const result = endTournament(tournamentId);
+
+    if (!result.success) {
+      return res.status(404).json({ error: result.message });
+    }
+
+    return res.json({
+      success: true,
+      message: result.message
+    });
+
+  } catch (error) {
+    console.error("Error ending tournament:", error);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 const server = app.listen(PORT, () => {
@@ -102,65 +162,6 @@ function createRound(players, tournamentId) {
 
   return { success: true, message: "Round created", rooms };
 }
-
-app.post("/api/create", async (req, res) => {
-  console.log(">>> /api/create HIT");
-  
-  try {
-    const { tournamentId } = req.body;    
-
-    if (!tournamentId) {
-      return res.status(400).json({ error: "Missing tournamentId" });
-    }
-
-    const players = await fetchPlayers(tournamentId);
-
-    if (!players.success) {
-      return res.status(404).json({ error: players.message });
-    }    
-  
-    const result = createRound(players.players, tournamentId);
-
-    if (!result.success) {
-      return res.status(400).json({ error: result.message });
-    }
-
-    return res.json({
-      success: true,
-      message: result.message,
-      rooms: result.rooms // optional, useful if frontend needs to know
-    });
-
-  } catch (error) {
-    console.error("Error creating tournament round:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-app.post("/api/end", async (req, res) => {
-try {
-    const { tournamentId } = req.body;
-
-    if (!tournamentId) {
-      return res.status(400).json({ error: "Missing tournamentId" });
-    }
-
-    const result = endTournament(tournamentId);
-
-    if (!result.success) {
-      return res.status(404).json({ error: result.message });
-    }
-
-    return res.json({
-      success: true,
-      message: result.message
-    });
-
-  } catch (error) {
-    console.error("Error ending tournament:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
 
 io.on("connection", (socket) => {
   console.log("client connected");
