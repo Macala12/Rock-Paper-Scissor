@@ -32,7 +32,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "", "index.html"));
 });
 
-app.post("/api/create", async (req, res) => {
+app.get("/api/create", async (req, res) => {
   
   try {
     const { tournamentId } = req.body;    
