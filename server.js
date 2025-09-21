@@ -104,6 +104,8 @@ function createRound(players, tournamentId) {
 }
 
 app.post("/api/create", async (req, res) => {
+  console.log(">>> /api/create HIT");
+  
   try {
     const { tournamentId } = req.body;    
 
