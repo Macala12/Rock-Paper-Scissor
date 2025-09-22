@@ -136,7 +136,7 @@ const createRoom = (isReload) => {
 };
 
 socket.on("wrongRoomCorrection", ({actual_match_id}) => {
-    window.location.href = `https://octagames-rock-paper-scissor.onrender.com/?player=${player}&id=${actual_match_id}`;
+    window.location.href = `https://octagames-rock-paper-scissor.onrender.com/?player=${player}roomId=${actual_match_id}&id=${tournamentID}`;
 });
 
 socket.on("Room is Invalid or This is not your Room", (data) => {
@@ -658,10 +658,11 @@ socket.on("endOldRoom", (data) => {
 
 socket.on("playAgain", (data) => {
   roomID = data.roomID;
+  const tournamentID = sessionStorage.getItem("id");
   console.log(data);
   sessionStorage.setItem("roomID", roomID);
 
-  window.location.href = `https://octagames-rock-paper-scissor.onrender.com/?player=${player}&id=${roomID}`;
+  window.location.href = `https://octagames-rock-paper-scissor.onrender.com/?player=${player}roomId=${roomID}&id=${tournamentID}`;
 
   removeWinner();
   returnToGame();
