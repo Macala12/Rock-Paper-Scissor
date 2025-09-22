@@ -394,7 +394,7 @@ socket.on("winner", data => {
   console.log(data);
   
   if (winner == "draw") {
-    oppoTitle.innerHTML = opponentUsername + " Picked";
+    oppoTitle.innerHTML = opponentUsername.replace(/[^\w]/g, "") + " Picked";
     resultMain.classList.add("block");
     resultBoard.classList.add("grid");
 
@@ -435,7 +435,7 @@ socket.on("winner", data => {
     }
 
   } else if (!winner) {
-    oppoTitle.innerHTML = opponentUsername + " Picked";
+    oppoTitle.innerHTML = opponentUsername.replace(/[^\w]/g, "") + " Picked";
     resultMain.classList.add("block");
     resultBoard.classList.add("grid");
 
@@ -476,7 +476,7 @@ socket.on("winner", data => {
     }
   } else if (player1) {
     if (winner === player1) {
-      oppoTitle.innerHTML = opponentUsername;
+      oppoTitle.innerHTML = opponentUsername.replace(/[^\w]/g, "");
       resultMain.classList.add("block");
       resultBoard.classList.add("grid");
 
@@ -526,7 +526,7 @@ socket.on("winner", data => {
       }
 
     } else {
-      oppoTitle.innerHTML = opponentUsername;
+      oppoTitle.innerHTML = opponentUsername.replace(/[^\w]/g, "");
       resultMain.classList.add("block");
       resultBoard.classList.add("grid")
 
