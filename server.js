@@ -173,26 +173,26 @@ io.on("connection", (socket) => {
   socket.on("createRoom", ({ tournamentId, roomID, player }) => {
     const { rooms } = getTournament(tournamentId);
 
-    console.log("Tournament ID: ",tournamentId);
-    
+    console.log("Tournament ID:", tournamentId);
+
     let existingRoom = rooms.find(r => r.room_id === roomID);
+
     if (!existingRoom) {
-      let playersRoom = rooms.find((room) => room.p1 === player || room.p2 === player);
+      let playersRoom = rooms.find(room => room.p1 === player || room.p2 === player);
 
       if (playersRoom) {
         const actual_match_id = playersRoom.room_id;
-        io.to(socket.id).emit("wrongRoomCorrection", actual_match_id);
-      } else{
-        return socket.emit("Room is Invalid or This is not your Room");
+        return socket.emit("wrongRoomCorrection", actual_match_id);
+      } else {
+        return socket.emit("roomError", "Room is Invalid or This is not your Room");
       }
-    } else {
-      console.log(`Room ${roomID} already exists in tournament ${tournamentId}`);
     }
 
+    // ✅ Success path
     socket.join(roomID);
-    console.log("Rooms:", rooms);
+    console.log(`Player ${player} joined Room ${roomID} in Tournament ${tournamentId}`);
   });
-  
+
   // 🔹 Join room
   socket.on("joinRoom", async ({ tournamentId, roomID, player }) => {
     const { rooms, allPlayers, lastMoves } = getTournament(tournamentId);
