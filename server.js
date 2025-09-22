@@ -35,7 +35,7 @@ app.get("/", (req, res) => {
 app.get("/api/create", async (req, res) => {
   
   try {
-    const { tournamentId } = req.body;    
+    const { tournamentId } = req.query;    
     console.log("Hitting");
     
     if (!tournamentId) {
@@ -66,24 +66,24 @@ app.get("/api/create", async (req, res) => {
   }
 });
 
-app.post("/api/end", async (req, res) => {
-try {
-    const { tournamentId } = req.body;
+app.get("/api/end", async (req, res) => {
+  try {
+      const { tournamentId } = req.query;
 
-    if (!tournamentId) {
-      return res.status(400).json({ error: "Missing tournamentId" });
-    }
+      if (!tournamentId) {
+        return res.status(400).json({ error: "Missing tournamentId" });
+      }
 
-    const result = endTournament(tournamentId);
+      const result = endTournament(tournamentId);
 
-    if (!result.success) {
-      return res.status(404).json({ error: result.message });
-    }
+      if (!result.success) {
+        return res.status(404).json({ error: result.message });
+      }
 
-    return res.json({
-      success: true,
-      message: result.message
-    });
+      return res.json({
+        success: true,
+        message: result.message
+      });
 
   } catch (error) {
     console.error("Error ending tournament:", error);
