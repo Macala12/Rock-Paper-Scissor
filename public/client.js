@@ -540,7 +540,7 @@ socket.on("winner", data => {
           yourChoice.innerHTML = rockChoice;
         } else if (data.currentRoom.p1Choice == "scissor") {
           yourChoice.innerHTML = scissorChoice;
-        } else if (!data.currentRoom.hasOwnProperty("p1Choice")) {
+        } else if (!data.currentRoom.hasOwnProperty("p1Choice") || !data.currentRoom.p1Choice) {
           yourChoice.innerHTML = "No Choice"
         }
 
@@ -550,7 +550,7 @@ socket.on("winner", data => {
           oppoChoice.innerHTML = rockChoice;
         } else if (data.currentRoom.p2Choice == "scissor") {
           oppoChoice.innerHTML = scissorChoice;
-        } else if (!data.currentRoom.hasOwnProperty("p2Choice")) {
+        } else if (!data.currentRoom.hasOwnProperty("p2Choice") || !data.currentRoom.p2Choice) {
           oppoChoice.innerHTML = "No Choice"
         }
       }else{
@@ -560,7 +560,7 @@ socket.on("winner", data => {
           yourChoice.innerHTML = rockChoice;
         } else if (data.currentRoom.p2Choice == "scissor") {
           yourChoice.innerHTML = scissorChoice;
-        } else if (!data.currentRoom.hasOwnProperty("p2Choice")) {
+        } else if (!data.currentRoom.hasOwnProperty("p2Choice") || !data.currentRoom.p2Choice) {
           yourChoice.innerHTML = "No Choice"
         }
         
@@ -570,26 +570,13 @@ socket.on("winner", data => {
           oppoChoice.innerHTML = rockChoice;
         } else if (data.currentRoom.p1Choice == "scissor") {
           oppoChoice.innerHTML = scissorChoice;
-        } else if (!data.currentRoom.hasOwnProperty("p2Choice")) {
+        } else if (!data.currentRoom.hasOwnProperty("p1Choice") || !data.currentRoom.p1Choice) {
           oppoChoice.innerHTML = "No Choice"
         }
       }
     }
   } 
-  // else if (data == "p2") {
-  //   if (!player1) {
-  //     resultsHeading.innerText = "YOU WIN";
-  //     resultButton.style.color = "#0D9276";
-  //     yourChoice.classList.add("winner");
-  //     player2Score = player2Score + 1;
-  //     updateScore(player1Score, player2Score); 
-  //   } else {
-  //     resultsHeading.innerText = "YOU LOSE";
-  //     resultButton.style.color = "#FF004D";
-  //     oppoChoice.classList.add("winner");
-  //   }
-  // }
-  
+
   resultBoard.classList.add("after-choosing");
   results.classList.remove("none");
   results.classList.add("grid");

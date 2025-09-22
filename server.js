@@ -172,7 +172,7 @@ io.on("connection", (socket) => {
 
   socket.on("createRoom", ({ tournamentId, roomID, player }) => {
     const { rooms } = getTournament(tournamentId);
-        
+
     console.log("Tournament ID:", tournamentId);
 
     let existingRoom = rooms.find(r => r.room_id === roomID);
@@ -421,7 +421,7 @@ const declareWinner = async (tournamentId, roomID, player) => {
   try {
     if (winner !== "draw") {
       await Leaderboard.findOneAndUpdate(
-        { leaderboardId: "68a64d526223e4d5e74daaea", username: winner },
+        { leaderboardId: tournamentId, username: winner },
         { $inc: { score: 3 } },
         { new: true }
       );
