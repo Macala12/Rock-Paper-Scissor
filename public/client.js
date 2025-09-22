@@ -82,7 +82,7 @@ roomID = Math.random().toString(36);
 const tournamentIDStored = sessionStorage.getItem("id");
 const sessionRoom = sessionStorage.getItem("roomID");
 const realPlayer = sessionStorage.getItem("player");
-const connect = 'http://localhost:4000/';
+const connect = 'https://octagames-rock-paper-scissor.onrender.com/';
 
 if (!tournamentIDStored) {
     sessionStorage.setItem("id", tournamentID);
@@ -136,7 +136,7 @@ const createRoom = (isReload) => {
 };
 
 socket.on("wrongRoomCorrection", ({actual_match_id}) => {
-    window.location.href = `http://localhost:4000/?player=${player}&id=${actual_match_id}`;
+    window.location.href = `https://octagames-rock-paper-scissor.onrender.com/?player=${player}&id=${actual_match_id}`;
 });
 
 socket.on("Room is Invalid or This is not your Room", (data) => {
@@ -661,7 +661,7 @@ socket.on("playAgain", (data) => {
   console.log(data);
   sessionStorage.setItem("roomID", roomID);
 
-  window.location.href = `http://localhost:4000/?player=${player}&id=${roomID}`;
+  window.location.href = `https://octagames-rock-paper-scissor.onrender.com/?player=${player}&id=${roomID}`;
 
   removeWinner();
   returnToGame();
@@ -672,7 +672,7 @@ socket.on("tournamentHasEnded", (data) => {
   sessionStorage.removeItem("player");
   sessionStorage.removeItem("roomID");
   sessionStorage.removeItem("id");
-  window.location.href = `http://localhost:4000/end.html`;
+  window.location.href = `https://octagames-rock-paper-scissor.onrender.com/end.html`;
 });
 
 const returnToLogin = () => {
