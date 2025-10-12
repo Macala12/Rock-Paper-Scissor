@@ -14,122 +14,136 @@
     <title>Rock Paper Scissor</title>
   </head>
   <body>
-    <section class="container">
-      <header class="header">
-        <img src="/logo.svg" alt="logo" />
+    <div class="game_box">
+        <section class="container">
+          <!---Sounds Page-->
+          <section class="music">
+            <div class="music__container">
+              <header class="music__header">
+                <h2 class="music__title">Play Music</h2>
+                <!-- <img src="/icon-close.svg" alt="Close" class="close-btn" /> -->
+              </header>
 
-        <div class="score">
-          <p class="score__title">score</p>
-          <p class="score__number" id="score">0</p>
-        </div>
-      </header>
+              <button class="btn play-sound">
+                🎵 Yes, Play
+              </button>
 
-      <div class="to__center">
-        <div class="opponent__section">
-          <div class="user_main">
-            <div class="user">
-              <!-- <img src="https://api.dicebear.com/9.x/big-smile/svg?seed=placeholder" alt=""> -->
-              <div class="user_info">
-                <h5 class="opponent__"></h5>
+              <button class="btn no-sound">
+                🔇 No, Don't Play
+              </button>
+            </div>
+          </section>
+
+          <header class="header">
+            <img src="/logo.svg" alt="logo" />
+
+            <div class="score">
+              <p class="score__title">score</p>
+              <p class="score__number" id="score"></p>
+            </div>
+          </header>
+
+          <div class="to__center">
+            <div class="opponent__section">
+              <div class="user_main">
+                <div class="user">
+                  <!-- <img src="https://api.dicebear.com/9.x/big-smile/svg?seed=placeholder" alt=""> -->
+                  <div class="user_info">
+                    <h5 class="opponent__"></h5>
+                  </div>
+                </div>
+              </div>
+              <section class="main_opponent_last_chosen">
+              </section>
+              <p class="oppo__choice_text"></p>
+            </div>
+            <div class="timer">
+              <div class="timer_box">
+                <h3 class="counter">s</h3>
+              </div>
+              <h5>Select your weapon</h5>
+            </div>
+            <div class="user__section">
+              <section class="main">
+                <button class="choice__paper" onclick="clickChoice('paper')">
+                  <div class="choice">
+                    <img src="/icon-paper.jpg" alt="Paper" class="choice__img" />
+                  </div>
+                  <p>Paper</p>
+                </button>
+
+                <button class="choice__scissor" onclick="clickChoice('scissor')">
+                  <div class="choice">
+                    <img src="/icon-scissors.jpg" alt="Scissor" class="choice__img" />
+                  </div>
+                  <p>Scissor</p>
+                </button>
+
+                <button class="choice__rock" onclick="clickChoice('rock')">
+                  <div class="choice">
+                    <img src="/icon-rock.jpg" alt="Rock" class="choice__img" />
+                  </div>
+                  <p>Rock</p>
+                </button>
+              </section>
+              <div class="user_main" style="margin-top: 45px;">
+                <div class="user">
+                  <!-- <img src="https://api.dicebear.com/9.x/big-smile/svg?seed=placeholder" alt=""> -->
+                  <div class="user_info">
+                    <h5 class="user__">datboifrom_imo</h5>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <section class="main_opponent_last_chosen">
-          </section>
-          <p class="oppo__choice_text"></p>
-        </div>
-        <div class="timer">
-          <div class="timer_box">
-            <h3 class="counter">  s</h3>
-          </div>
-          <h5>Select your weapon</h5>
-        </div>
-        <div class="user__section">
-          <section class="main">
-            <button class="choice__paper" onclick="clickChoice('paper')">
-              <div class="choice">
-                <img src="/icon-paper.jpg" alt="Paper" class="choice__img" />
-              </div>
-              <p>Paper</p>
-            </button>
 
-            <button class="choice__scissor" onclick="clickChoice('scissor')">
-              <div class="choice">
-                <img src="/icon-scissors.jpg" alt="Scissor" class="choice__img" />
-              </div>
-              <p>Scissor</p>
-            </button>
-
-            <button class="choice__rock" onclick="clickChoice('rock')">
-              <div class="choice">
-                <img src="/icon-rock.jpg" alt="Rock" class="choice__img" />
-              </div>
-              <p>Rock</p>
-            </button>
-          </section>
-          <div class="user_main" style="margin-top: 30px;">
-            <div class="user">
-              <!-- <img src="https://api.dicebear.com/9.x/big-smile/svg?seed=placeholder" alt=""> -->
-              <div class="user_info">
-                <h5 class="user__">datboifrom_imo</h5>
-              </div>
+          <!--Results Page-->
+          <div class="result_main">
+            <div class="results">
+              <h2 class="results__heading">you lose</h2>
+              <button class="results__button" onclick="playAgain()">
+                play again
+              </button>
+              <p class="searchingText">
+                
+              </p>
             </div>
-          </div>
-        </div>
-      </div>
+            <section class="result__board">
+              <div class="userResult">
+                <h2 class="your__result">You Picked</h2>
+                <div class="your__choice"></div>
+              </div>
 
+              <div class="opponentResult">
+                <h2 class="opponents__result"></h2>
+                <div class="oppo__choice"></div>
+              </div>
 
-      <!--Results Page-->
-      <div class="result_main">
-          <div class="results">
-            <h2 class="results__heading">you lose</h2>
-            <button class="results__button" onclick="playAgain()">
-              play again
-            </button>
-            <p class="searchingText">
-              
-            </p>
-          </div>
-        <section class="result__board">
-          <div class="userResult">
-            <h2 class="your__result">You Picked</h2>
-            <div class="your__choice"></div>
+            </section>
           </div>
 
-          <div class="opponentResult">
-            <h2 class="opponents__result"></h2>
-            <div class="oppo__choice"></div>
+          <div class="animation">
+            <img src="/animation.gif" alt="">
           </div>
 
         </section>
-      </div>
-    </section>
 
-    <footer class="footer">
-      <button class="rules__button" id="rules-btn">Rules</button>
-      <button class="exit__btn" onclick="exitGame()">exit</button>
-    </footer>
+        <footer class="footer">
+          <button class="no-sound-button rules__button" id="rules-btn" onclick="noSound()">No Music</button>
+        </footer>
 
-    <!-- join page -->
-    <section class="join">
-      <div class="join__container">
-        <img src="/logo.svg" alt="LOGO" />
-        <h5>Connecting...</h5>
-      </div>
-    </section>
+        <!-- join page -->
+        <section class="join">
+          <div class="join__container">
+            <img src="/logo.svg" alt="LOGO" />
+            <h5>Connecting...</h5>
 
-     <!---Rules Page-->
-     <section class="rules">
-      <div class="rules__container">
-        <header class="rules__header">
-          <h2 class="rules__title">rules</h2>
-          <img src="/icon-close.svg" alt="Close" class="close-btn" />
-        </header>
-
-        <img src="/image-rules.svg" alt="rules" class="rules__img" />
-      </div>
-    </section>
-
+            <button class="play-sound-true" onclick="playSound(true)">
+              Click here to play game music 
+            </button>
+          </div>
+        </section>
+    </div>
     <script src="/socket.io/socket.io.js"></script>
   </body>
 </html>

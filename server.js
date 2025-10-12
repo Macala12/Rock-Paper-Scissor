@@ -36,7 +36,6 @@ app.get("/api/create", async (req, res) => {
   
   try {
     const { tournamentId } = req.query;    
-    console.log("Hitting");
     
     if (!tournamentId) {
       return res.status(400).json({ error: "Missing tournamentId" });
@@ -100,8 +99,22 @@ const io = new Server(server);
 mongoose.connect("mongodb+srv://michael-user-1:Modubass1212@assetron.tdmvued.mongodb.net/octagames")
 .then(() => {
   console.log("MongoDB Connected");
+  // hardcoded();
 })
 .catch(err => console.log("DB Connection Error:", err));
+
+//Hardcoded
+async function hardcoded() {
+  const players = await fetchPlayers("68dd869c8c9854acf5ad1a1d");
+
+  if (players.success) {
+    const result = createRound(players.players, "68dd869c8c9854acf5ad1a1d");
+
+    if (result.success) {
+      console.log(result.rooms);
+    }
+  }
+}
 
 // 🔹 Tournament store
 let tournaments = {};
@@ -151,6 +164,7 @@ function createRound(players, tournamentId) {
       p2Choice: null,
       p1Score: 0,
       p2Score: 0,
+      hasUpdatedLeaderboard: false,
       endTime: null
     });
   }
@@ -163,6 +177,23 @@ function createRound(players, tournamentId) {
   return { success: true, message: "Round created", rooms };
 }
 
+  // function findFreePlayerRepeatedly(allPlayers, interval = 5000) {
+  //   return new Promise((resolve) => {
+  //     const check = () => {
+  //       const freePlayer = Array.from(allPlayers.entries()).find(([_, status]) => status === "free");
+  //       const freePlayerName = freePlayer ? freePlayer[0] : null;
+
+  //       if (freePlayerName) {
+  //         resolve(freePlayerName); // ✅ Found a free player, return it
+  //       } else {
+  //         setTimeout(check, interval); // ⏱️ Try again in 5s
+  //       }
+  //     };
+
+  //     check(); // start the first check
+  //   });
+  // }
+
 io.on("connection", (socket) => {
   console.log("client connected");
 
@@ -171,28 +202,38 @@ io.on("connection", (socket) => {
   });
 
   socket.on("createRoom", ({ tournamentId, roomID, player }) => {
-    const { rooms } = getTournament(tournamentId);
-
-    console.log("Tournament ID:", tournamentId);
-
+    const { rooms, allPlayers } = getTournament(tournamentId);
     let existingRoom = rooms.find(r => r.room_id === roomID);
 
     if (!existingRoom) {
-      let playersRoom = rooms.find(room => room.p1 === player || room.p2 === player);
 
+      let playersRoom = rooms.find(room => room.p1 === player || room.p2 === player);
       if (playersRoom) {
         const actual_match_id = playersRoom.room_id;        
         return socket.emit("wrongRoomCorrection", actual_match_id);
       } else {
+        if (allPlayers.has(player)) {
+          const status = allPlayers.get(player);
+          // If they were previously occupied, mark them as free
+          if (status === "occupied") {
+            socket.emit("lateComers"); // frontend can start rematch flow
+            
+            //Create a default room for late comer but they will lose as punishment
+            const newroomID = Math.random().toString(36);
+            createRoom(tournamentId, newroomID, roomID, "oc_COMP_MIC_@#", player, socket);
+            return socket.emit("wrongRoomCorrection", newroomID);
+          }
+        }
         return socket.emit("roomError", "Room is Invalid or This is not your Room");
       }
     }
 
+    socket.emit("joinRoom");
     // ✅ Success path
     socket.join(roomID);
     console.log(`Player ${player} joined Room ${roomID} in Tournament ${tournamentId}`);
   });
-
+  
   // 🔹 Join room
   socket.on("joinRoom", async ({ tournamentId, roomID, player }) => {
     const { rooms, allPlayers, lastMoves } = getTournament(tournamentId);
@@ -200,7 +241,22 @@ io.on("connection", (socket) => {
     let existingRoom = rooms.find(r => r.room_id === roomID);
     let opponent;
 
-    if (!io.sockets.adapter.rooms.has(roomID)) {
+    // 🧩 1. Check if the room actually exists in socket.io
+    if (!existingRoom) {
+      // 🧠 Before rejecting, check if player exists in allPlayers
+      if (allPlayers.has(player)) {
+        const status = allPlayers.get(player);
+
+        // If they were previously occupied, mark them as free
+        if (status === "occupied") {
+          allPlayers.set(player, "free");
+          console.log(`♻️ ${player}'s old room (${roomID}) not found — marked as free.`);
+          socket.emit("waitingNewPlayer"); // frontend can start rematch flow
+          return;
+        }
+      }
+
+      // If not found at all, send invalid
       return socket.emit("Not a ValidToken");
     }
 
@@ -209,66 +265,74 @@ io.on("connection", (socket) => {
       return socket.emit("roomFull");
     }
 
+    // ✅ 2. Proceed with normal join
     if (existingRoom && (existingRoom.p1 === player || existingRoom.p2 === player)) {
-      socket.join(roomID);   
+      socket.join(roomID);
       allPlayers.set(player, "occupied");
 
-      // ✅ Ensure we only set endTime once
       if (!existingRoom.endTime) {
         existingRoom.endTime = Date.now() + 15 * 1000; // 15 seconds from now
       }
 
-      if (existingRoom.p1 === player) {
-        opponent = existingRoom.p2;
-      } else if (existingRoom.p2 === player) {
-        opponent = existingRoom.p1;
-      }
+      opponent = existingRoom.p1 === player ? existingRoom.p2 : existingRoom.p1;
 
       try {
-        const updateWinners = await Leaderboard.findOne(
-          { leaderboardId: "68a64d526223e4d5e74daaea", username: player }
-        );
+        const updateWinners = await Leaderboard.findOne({
+          leaderboardId: tournamentId,
+          username: player
+        });
 
         socket.emit("playersConnected", {
-          score: updateWinners?.score || 0,
+          score: updateWinners?.score,
           existingRoom,
-          timer: existingRoom.endTime,  // ✅ use saved endTime
-          opponent: opponent
+          timer: existingRoom.endTime,
+          playerOne: existingRoom.p1,
+          opponent
         });
 
-        io.to(roomID).emit("updateLastMoves", {
-          player,   
-          lastMoves
-        });
-
+        io.to(roomID).emit("updateLastMoves", { player, lastMoves });
       } catch (err) {
         console.error("Error updating winner:", err);
       }
     } else {
+      // 🧩 Room doesn’t exist but player might still be in the tournament
+      if (allPlayers.has(player)) {
+        allPlayers.set(player, "free");
+        console.log(`⚠️ ${player}'s assigned room invalid — set to free.`);
+        socket.emit("waitingNewPlayer");
+        return;
+      }
+
       return socket.emit("Room is Invalid or This is not your Room");
     }
   });
 
   // 🔹 Player choice
   socket.on("p1Choice", ({ tournamentId, roomID, player, rpschoice }) => {
-    console.log("Checking if it is undefined for p1Choice:", rpschoice);
-
     const { rooms, lastMoves } = getTournament(tournamentId);
     const currentRoom = rooms.find((room) => room.room_id === roomID);
     if (!currentRoom) return;
 
-    if (currentRoom.p1 === player) {
-      currentRoom.p1Choice = rpschoice;
-    } else if (currentRoom.p2 === player) {
-      currentRoom.p2Choice = rpschoice;
+    if (currentRoom.hasUpdatedLeaderboard === true || currentRoom.hasUpdatedLeaderboard === "true") {
+      if (currentRoom.p1 === player) {
+        currentRoom.p1Choice = currentRoom.p1Choice;
+      } else if (currentRoom.p2 === player) {
+        currentRoom.p2Choice = currentRoom.p2Choice;
+      }
+    }else{
+      if (currentRoom.p1 === player) {
+        currentRoom.p1Choice = rpschoice;
+      } else if (currentRoom.p2 === player) {
+        currentRoom.p2Choice = rpschoice;
+      }
     }
 
     console.log(currentRoom);
 
     if (rpschoice !== undefined) {
-      addMove(rpschoice, tournamentId);
+      addMove(rpschoice, tournamentId, player);
     }
-    return declareWinner(tournamentId, roomID, player);
+    return declareWinner(tournamentId, roomID, player, socket);
   });
 
   socket.on("p2Choice", ({ tournamentId, roomID, player, rpschoice }) => {
@@ -285,14 +349,23 @@ io.on("connection", (socket) => {
     console.log(currentRoom);
 
     if (rpschoice !== undefined) {
-      addMove(rpschoice, tournamentId);
+      addMove(rpschoice, tournamentId, player);
     }
-    return declareWinner(tournamentId, roomID, player);
+    return declareWinner(tournamentId, roomID, player, socket);
   });
 
   // 🔹 Player clicked rematch (fixed)
   socket.on("playerClicked", ({ tournamentId, roomID, player1 }) => {
     const { allPlayers, pendingRematch } = getTournament(tournamentId);
+    const tournament = getTournament(tournamentId);
+
+    if (!allPlayers || !pendingRematch || !tournament) {
+      console.warn("Invalid tournament data:", tournamentId);
+      return;
+    }
+
+    // Avoid duplicate waiting state
+    if (pendingRematch.has(player1)) return;
 
     // Convert waiting players into an array
     const waitingPlayers = Array.from(pendingRematch.keys()).filter(p => p !== player1);
@@ -303,28 +376,40 @@ io.on("connection", (socket) => {
       allPlayers.set(player1, "waiting");
       socket.emit("waitingNewPlayer");
       console.log(`${player1} is waiting for a rematch...`);
-    } else {
-      // Pick a random waiting player
-      const randomIndex = Math.floor(Math.random() * waitingPlayers.length);
-      const opponent = waitingPlayers[randomIndex];
-      const opponentData = pendingRematch.get(opponent);
+      return;
+    }
 
-      // Remove opponent from waiting
-      pendingRematch.delete(opponent);
+    // Pick a random waiting player
+    const randomIndex = Math.floor(Math.random() * waitingPlayers.length);
+    const opponent = waitingPlayers[randomIndex];
+    const opponentData = pendingRematch.get(opponent);
 
-      // Both players are now occupied
-      allPlayers.set(opponent, "occupied");
-      allPlayers.set(player1, "occupied");
+    // Remove opponent from waiting
+    pendingRematch.delete(opponent);
 
-      const newroomID = Math.random().toString(36);
+    // Both players are now occupied
+    allPlayers.set(opponent, "occupied");
+    allPlayers.set(player1, "occupied");
 
+    const newroomID = Math.random().toString(36);
+
+    try {
       createRoom(tournamentId, newroomID, roomID, opponent, player1, socket);
 
-      // ✅ Send the event to both players directly
-      io.to(roomID).emit("endOldRoom"); // optional: tell old room to close
-      io.emit("playAgain", { roomID: newroomID, players: [opponent, player1] });
+      // 🧹 Clean up old room
+      if (Array.isArray(tournament.rooms)) {
+        tournament.rooms = tournament.rooms.filter(r => r.room_id !== roomID);
+      }
 
-      console.log(`Rematch created between ${opponent} and ${player1} in room ${newroomID}`);
+      console.log(`🧹 Removed old room ${roomID} from tournament ${tournamentId}`);
+
+      // Notify only the two players
+      io.to(opponentData.socketId).emit("playAgain", { roomID: newroomID, players: [opponent, player1] });
+      io.to(socket.id).emit("playAgain", { roomID: newroomID, players: [opponent, player1] });
+
+      console.log(`🔁 Rematch created between ${opponent} and ${player1} in room ${newroomID}`);
+    } catch (err) {
+      console.error("Error during rematch creation:", err);
     }
   });
 
@@ -383,20 +468,23 @@ function waitForFreeUser(allPlayers, socket, callback) {
       callback(freeuser); // hand freeuser back to logic
     } else {
       socket.emit("waitingNewPlayer");
-      console.log("No free user yet, retrying in 5s...");
     }
   }, 5000); // check every 5s
 }
 
-function addMove(choice, tournamentId) {
+function addMove(choice, tournamentId, player) {
   const { lastMoves } = getTournament(tournamentId);
-  lastMoves.push({ "move": choice });
+
+  // ✅ Correct way to use a dynamic key
+  lastMoves.push({ [player]: choice });
+
+  // ✅ Keep only the last 5 moves
   if (lastMoves.length > 5) {
     lastMoves.shift();
   }
 }
 
-const declareWinner = async (tournamentId, roomID, player) => {
+const declareWinner = async (tournamentId, roomID, player, socket) => {
   const { rooms, allPlayers } = getTournament(tournamentId);
   let winner;
   const currentRoom = rooms.find((room) => room.room_id === roomID);
@@ -404,9 +492,9 @@ const declareWinner = async (tournamentId, roomID, player) => {
 
   if (currentRoom.p1Choice === undefined && currentRoom.p2Choice === undefined) {
     winner = null; // no winner
-  } else if (currentRoom.p1Choice === undefined) {
+  } else if (!currentRoom.p1Choice || currentRoom.p1Choice === "null") {
     winner = currentRoom.p2; // p2 wins if p1 didn't choose
-  } else if (currentRoom.p2Choice === undefined) {
+  } else if (!currentRoom.p2Choice || currentRoom.p2Choice === "null") {
     winner = currentRoom.p1; // p1 wins if p2 didn't choose
   } else if (currentRoom.p1Choice === currentRoom.p2Choice) {
     winner = "draw";
@@ -419,12 +507,17 @@ const declareWinner = async (tournamentId, roomID, player) => {
   }
 
   try {
-    if (winner !== "draw") {
-      await Leaderboard.findOneAndUpdate(
+    if (winner !== "draw" && !currentRoom.hasUpdatedLeaderboard) {
+      const updatescore = await Leaderboard.findOneAndUpdate(
         { leaderboardId: tournamentId, username: winner },
         { $inc: { score: 3 } },
         { new: true }
       );
+      if (updatescore) {
+        console.log(`Updated Score for ${winner}`);
+      }
+    }else{
+      socket.emit("alreadyUpdated");
     }
   } catch (err) {
     console.error("Error updating winner:", err);
@@ -432,6 +525,7 @@ const declareWinner = async (tournamentId, roomID, player) => {
 
   if (winner !== "draw" || !winner) { // Add !== player to this place
     allPlayers.set(player, "free");
+    currentRoom.hasUpdatedLeaderboard = true;
   }
 
   return io.sockets.to(roomID).emit("winner", { winner, currentRoom });
@@ -451,6 +545,7 @@ function createRoom(tournamentId, newroomID, oldroomID, player1, player2, socket
   rooms.splice(rooms.findIndex(r => r.room_id === oldroomID), 1);
 
   let players = [player1, player2];
+  let defaultChioce;
   players.sort(() => Math.random() - 0.5);
 
   let newRoom = {
@@ -475,7 +570,6 @@ function endTournament(tournamentId) {
   
   // Loop through all rooms in this tournament
   tournament.rooms.forEach(room => {
-    console.log("room to be removed: ", room);
 
     const players = [
       { username: room.p1, socketId: room.p1SocketId, room_id: room.room_id },
@@ -483,9 +577,6 @@ function endTournament(tournamentId) {
     ];
 
     players.forEach(async player => {
-
-      console.log("Room Id: ", player.room_id);      
-
       io.to(player.room_id).emit("tournamentHasEnded", {
         roomId: player.room_id,
         tournamentId,

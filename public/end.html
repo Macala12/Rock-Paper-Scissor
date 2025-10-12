@@ -14,14 +14,23 @@
     <title>Rock Paper Scissor</title>
   </head>
   <body>
-
     <section class="end">
       <div class="end__container">
         <!-- <img src="/logo.svg" alt="LOGO" /> -->
-        <h5>Tournament has ended    </h5>
+        <h5>Tournament has ended</h5>
+        <span class="leaderboard_redirect">
+        </span>
       </div>
     </section>
 
     <script src="/socket.io/socket.io.js"></script>
   </body>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const tournamentId = urlParams.get("t_id");
+
+    document.querySelector(".leaderboard_redirect").innerHTML = `
+      <a href="https://octagames.ng/tournament_page?id=${tournamentId}" class="back_to_leaderboard">Go to leaderboard</a>
+    `;
+  </script>
 </html>

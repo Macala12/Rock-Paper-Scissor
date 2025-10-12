@@ -17,8 +17,12 @@ const oppoTitle = document.querySelector('.opponents__result');
 const exitBtn = document.querySelector('.exit__btn');
 const rulesBtn = document.querySelector(".rules__button");
 const rulesBoard = document.querySelector(".rules");
+const musicBoard = document.querySelector(".music");
 const showRulesBoard = document.querySelector(".show__result_board");
 const closeRules = document.querySelector(".close-btn");
+
+const playSounds = document.querySelector('.play-sound');
+const noSounds = document.querySelector('.no-sound');
 
 const gameFooter = document.querySelector('.footer');
 
@@ -67,14 +71,28 @@ const scissorChoice = `
     </button>
 `;
 
-rulesBtn.addEventListener("click", () => {
-  rulesBoard.classList.toggle("show__rules_board");
-  closeRules.style.cursor = "pointer";
+//Sounds
+const gameMusic = new Audio("../sound/game-music.mp3");
+const buttonSound = new Audio("../sound/button.mp3");
+const lostSound = new Audio("../sound/lost.wav");
+const wonSound = new Audio("../../sound/won.wav");
+
+// rulesBtn.addEventListener("click", () => {
+//   rulesBoard.classList.toggle("show__rules_board");
+//   closeRules.style.cursor = "pointer";
+// });
+
+// closeRules.addEventListener("click", () => {
+//   rulesBoard.classList.toggle("show__rules_board");
+// });
+
+playSounds.addEventListener("click", () => {
+  playSound(true);
 });
 
-closeRules.addEventListener("click", () => {
-  rulesBoard.classList.toggle("show__rules_board");
-});
+noSounds.addEventListener("click", () => {
+  playSound(false);
+})
 
 let roomID;
 roomID = Math.random().toString(36);
@@ -82,7 +100,21 @@ roomID = Math.random().toString(36);
 const tournamentIDStored = sessionStorage.getItem("id");
 const sessionRoom = sessionStorage.getItem("roomID");
 const realPlayer = sessionStorage.getItem("player");
-const connect = 'https://octagames-rock-paper-scissor.onrender.com/';
+const sessionMusic = sessionStorage.getItem("sound");
+
+// const connect = 'https://octagames-rock-paper-scissor.onrender.com/';
+
+const connect = 'http://localhost:4000/';
+
+if (!sessionMusic) {
+  musicBoard.style.display = 'flex';
+  musicBoard.style.opacity = 1;
+}else{
+  if (sessionMusic === true || sessionMusic === "true") { 
+    document.querySelector(".play-sound-true").style.display = "block";
+  }
+}
+
 
 if (!tournamentIDStored) {
     sessionStorage.setItem("id", tournamentID);
@@ -114,6 +146,23 @@ let previousChoice = null;
 let isPreviousChoice = false;
 let player1Chose, player2Chose;
 
+function playSound(playBoolean) {
+  musicBoard.style.display = `none`;
+  musicBoard.style.opacity = 0;
+  
+  if (playBoolean === true || playBoolean === 'true') {
+    gameMusic.loop = true;
+    gameMusic.play();
+    sessionStorage.setItem("sound", true);
+  }else{
+    sessionStorage.setItem("sound", false);
+  }
+}
+
+function noSound() {
+  gameMusic.pause();
+}
+
 ///Socket
 const socket = io.connect( `${connect}`, { secure: true, transports: [ "flashsocket","polling","websocket" ] } );
 
@@ -130,9 +179,9 @@ const createRoom = (isReload) => {
     console.log(roomID); 
   }
 
-  if (isReload) {
-    joinRoom();
-  }
+  // if (isReload) {
+  //   joinRoom();
+  // }
 };
 
 socket.on("wrongRoomCorrection", (actual_match_id) => {
@@ -145,6 +194,10 @@ socket.on("Room is Invalid or This is not your Room", (data) => {
     joinContainer.innerHTML = `
         <h5>Room is Invalid or This is not your Room</h5>
     `;
+});
+
+socket.on("joinRoom", () => {
+  joinRoom();
 });
 
 const joinRoom = () => {
@@ -180,16 +233,39 @@ const countdownToResult = (futureTime, opponent) => {
     counterMain.innerHTML = `${counter}s`;
 
     if (counter <= 0) {
+      counterMain.innerHTML = "Time's Up!!!"
       clearInterval(counterInterval);
-      sendChoice(player1Chose, opponent);
+      showAnimation(true);
+      setTimeout(() => {
+        sendChoice(player1Chose, opponent);
+      }, 3000);
+
+      // let counter = 3;
+      // const rpsAnimation = setInterval(() => {
+      //   counter--;
+      //   if (counter <= 0) {
+      //     clearInterval(rpsAnimation);
+      //   }
+      // }, 1000);
+
     }
   }, 1000);
+};
+
+const showAnimation = (shouldShow) => {
+  const animation = document.querySelector(".animation");
+  if (shouldShow) {
+    animation.style.display = 'flex';
+  }else{
+    animation.style.display = 'none';
+  }
 };
 
 socket.on("playersConnected", (data) => {
   let countdown = 3; // start from 3 seconds
 
   const timer = data.timer;
+  const score = data.score;
   const countdownEl = document.querySelector(".join__container h5");
   const opponent = document.querySelector(".opponent__");
   const user = document.querySelector(".user__");
@@ -231,37 +307,49 @@ socket.on("updateLastMoves", (data) => {
   console.log("Player:", data.player);
   console.log("Last Moves:", data.lastMoves);
 
-  if (data.player !== player) { // Change to !== player 
+  if (player) { // Change to !== player 
     const movesEl = document.querySelector(".main_opponent_last_chosen");
-
-    // Clear old moves
     movesEl.innerHTML = "";
 
-    // Map move name to image path
     const moveIcons = {
       rock: "/icon-rock.jpg",
       paper: "/icon-paper.jpg",
-      scissor: "/icon-scissors.jpg"
+      scissor: "/icon-scissors.jpg",
     };
 
-    if (data.lastMoves.length < 1) {
-      return movesEl.innerHTML = "<p>No last picks found</p>"
+    if (!data.lastMoves || data.lastMoves.length < 1) {
+      movesEl.innerHTML = "<p>No last picks found</p>";
+      return;
     }
 
-    // Render each move as an image button
-    data.lastMoves.forEach(m => {
+    // Get moves that are NOT from this player (i.e., opponent's moves)
+    const filteredMoves = data.lastMoves.filter(m => Object.keys(m)[0] !== player);
+
+    if (!filteredMoves || filteredMoves.length === 0) {
+      movesEl.innerHTML = "<p>No last picks for this player</p>";
+      return;
+    }
+
+    filteredMoves.forEach(m => {
+      const opponent = Object.keys(m)[0];
+      const move = m[opponent]; // ✅ now we use the correct key
+
       const btn = document.createElement("button");
       btn.classList.add("choice__");
 
       btn.innerHTML = `
         <div class="choice">
-          <img src="${moveIcons[m.move]}" alt="${m.move}" class="choice__img" />
+          <img src="${moveIcons[move]}" alt="${move}" class="choice__img" />
         </div>
       `;
 
       movesEl.appendChild(btn);
     });
   }
+});
+
+socket.on("alreadyUpdate", () => {
+  alert("score already updates");
 });
 
 if (player && roomUrlId) {
@@ -289,38 +377,9 @@ const sendChoice = (rpschoice, opponent) => {
 }
 
 const clickChoice = (rpschoice) => {
- player1Chose = rpschoice;
-
- setChoice(rpschoice);
-  // if(!isPreviousChoice){
-  //   isPreviousChoice = true;
-  //   previousChoice = rpschoice;
-  // }
-
-  // if (rpschoice == "rock") {
-  //   if (previousChoice === "paper") {
-  //     paper.classList.remove("chosen");
-  //   }else if(previousChoice === "scissor"){
-  //     scissor.classList.remove("chosen");
-  //   }
-  //   rock.classList.add("chosen");
-  // }
-  // if (rpschoice == "paper") {
-  //   if (previousChoice === "rock") {
-  //     rock.classList.remove("chosen");
-  //   }else if(previousChoice === "scissor"){
-  //     scissor.classList.remove("chosen");
-  //   }
-  //   paper.classList.add("chosen");
-  // }
-  // if (rpschoice == "scissor") {
-  //   if (previousChoice === "paper") {
-  //     paper.classList.remove("chosen");
-  //   }else if(previousChoice === "rock"){
-  //     rock.classList.remove("chosen");
-  //   }
-  //   scissor.classList.add("chosen");
-  // }
+  player1Chose = rpschoice;
+  buttonSound.play();
+  setChoice(rpschoice);
 };
 
 function setChoice(rpschoice) {
@@ -391,8 +450,9 @@ const updateScore = (p1Score, p2Score) => {
 
 socket.on("winner", data => {
   winner = data.winner;
-  console.log(data);
-  
+  gameMusic.pause();
+  showAnimation(false);
+
   if (winner == "draw") {
     oppoTitle.innerHTML = opponentUsername.replace(/[^\w]/g, "") + " Picked";
     resultMain.classList.add("block");
@@ -476,6 +536,7 @@ socket.on("winner", data => {
     }
   } else if (player1) {
     if (winner === player1) {
+      wonSound.play();
       oppoTitle.innerHTML = opponentUsername.replace(/[^\w]/g, "");
       resultMain.classList.add("block");
       resultBoard.classList.add("grid");
@@ -490,7 +551,7 @@ socket.on("winner", data => {
           yourChoice.innerHTML = rockChoice;
         } else if (data.currentRoom.p1Choice == "scissor") {
           yourChoice.innerHTML = scissorChoice;
-        } else if (data.currentRoom.p1Choice === "undefined") {
+        } else if (data.currentRoom.p1Choice === "undefined" || !data.currentRoom.p1Choice) {
           yourChoice.innerHTML = "No Choice"
         }
 
@@ -500,7 +561,7 @@ socket.on("winner", data => {
           oppoChoice.innerHTML = rockChoice;
         } else if (data.currentRoom.p2Choice == "scissor") {
           oppoChoice.innerHTML = scissorChoice;
-        } else if (data.currentRoom.p2Choice === "undefined") {
+        } else if (data.currentRoom.p2Choice === "undefined" || !data.currentRoom.p2Choice) {
           oppoChoice.innerHTML = "No Choice"
         }
       }else{
@@ -510,7 +571,7 @@ socket.on("winner", data => {
           yourChoice.innerHTML = rockChoice;
         } else if (data.currentRoom.p2Choice == "scissor") {
           yourChoice.innerHTML = scissorChoice;
-        } else if (data.currentRoom.p2Choice === "undefined") {
+        } else if (data.currentRoom.p2Choice === "undefined" || !data.currentRoom.p2Choice) {
           yourChoice.innerHTML = "No Choice"
         }
         
@@ -520,12 +581,13 @@ socket.on("winner", data => {
           oppoChoice.innerHTML = rockChoice;
         } else if (data.currentRoom.p1Choice == "scissor") {
           oppoChoice.innerHTML = scissorChoice;
-        } else if (data.currentRoom.p1Choice === "undefined") {
+        } else if (data.currentRoom.p1Choice === "undefined" || !data.currentRoom.p1Choice) {
           oppoChoice.innerHTML = "No Choice"
         }
       }
 
     } else {
+      lostSound.play();
       oppoTitle.innerHTML = opponentUsername.replace(/[^\w]/g, "");
       resultMain.classList.add("block");
       resultBoard.classList.add("grid")
@@ -616,6 +678,7 @@ const removeWinner = () => {
 };
 
 const playAgain = () => {
+  buttonSound.play();
   const roomID = sessionStorage.getItem("roomID");
   const tournamentID = sessionStorage.getItem("id");
 
@@ -633,8 +696,12 @@ const playAgain = () => {
 };
 
 socket.on("waitingNewPlayer", (data) => {
-  document.querySelector(".searchingText").innerHTML = "Searching for next player... <span></span>";
+  document.querySelector(".searchingText").innerHTML = "Searching for next player <span></span>";
   document.querySelector(".searchingText").classList.add('loading');
+});
+
+socket.on("lateComers", () => {
+  console.log("late comer");
 });
 
 socket.on("endOldRoom", (data) => {
@@ -657,10 +724,8 @@ socket.on("playAgain", (data) => {
 
 socket.on("tournamentHasEnded", (data) => {
   console.log("ended");
-  sessionStorage.removeItem("player");
-  sessionStorage.removeItem("roomID");
-  sessionStorage.removeItem("id");
-  window.location.href = `${connect}end.html`;
+  sessionStorage.clear();
+  window.location.href = `${connect}end.html?t_id=${tournamentID}`;
 });
 
 const returnToLogin = () => {
