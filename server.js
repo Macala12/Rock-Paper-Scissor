@@ -11,7 +11,7 @@ import cors from "cors";
 const app = express();
 
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:4000"],  // or "*" to allow all
+  origin: ["https://octagames.ng",  "https://www.octagames.ng"],  // or "*" to allow all
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
@@ -47,7 +47,7 @@ app.get("/api/create", async (req, res) => {
       return res.status(404).json({ error: players.message });
     }    
   
-    const result = createRound(players.players, tournamentId);
+    const result = await createRound(players.players, tournamentId);
 
     if (!result.success) {
       return res.status(400).json({ error: result.message });
