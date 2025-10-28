@@ -11,7 +11,7 @@ import cors from "cors";
 const app = express();
 
 app.use(cors({
-  origin: ["https://octagames.ng",  "https://www.octagames.ng"],  // or "*" to allow all
+  origin: ["https://octagames.ng",  "https://www.octagames.ng", "http://localhost:3000"],  // or "*" to allow all
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
