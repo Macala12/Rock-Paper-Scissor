@@ -581,8 +581,8 @@ function createRoom(tournamentId, newroomID, oldroomID, player1, player2, socket
     room_id: newroomID,
     p1: players[0],
     p2: players[1],
-    p1Choice: null,
-    p2Choice: null,
+    p1Choice: undefined,
+    p2Choice: undefined,
     p1Score: 0,
     p2Score: 0
   };
