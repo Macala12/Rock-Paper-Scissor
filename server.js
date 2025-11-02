@@ -322,8 +322,10 @@ io.on("connection", (socket) => {
     }else{
       if (currentRoom.p1 === player) {
         currentRoom.p1Choice = rpschoice;
+        console.log(`updated ${player} choice: ${rpschoice}`)
       } else if (currentRoom.p2 === player) {
         currentRoom.p2Choice = rpschoice;
+        console.log(`updated ${player} choice: ${rpschoice}`)
       }
     }
 
@@ -339,10 +341,7 @@ io.on("connection", (socket) => {
 
     if (p1HasPlayed && p2HasPlayed) {
       // Make sure we only call declareWinner once per round
-      if (!currentRoom.roundResolved) {
-        currentRoom.roundResolved = true;
-        return declareWinner(tournamentId, roomID, player, socket);
-      }
+      return declareWinner(tournamentId, roomID, player, socket);
     }
   });
 
@@ -351,10 +350,18 @@ io.on("connection", (socket) => {
     const currentRoom = rooms.find((room) => room.room_id === roomID);
     if (!currentRoom) return;
 
-    if (currentRoom.p1 === player) {
-      currentRoom.p1Choice = rpschoice;
-    } else if (currentRoom.p2 === player) {
-      currentRoom.p2Choice = rpschoice;
+    if (currentRoom.hasUpdatedLeaderboard === true || currentRoom.hasUpdatedLeaderboard === "true") {
+      if (currentRoom.p1 === player) {
+        currentRoom.p1Choice = currentRoom.p1Choice;
+      } else if (currentRoom.p2 === player) {
+        currentRoom.p2Choice = currentRoom.p2Choice;
+      }
+    }else{
+      if (currentRoom.p1 === player) {
+        currentRoom.p1Choice = rpschoice;
+      } else if (currentRoom.p2 === player) {
+        currentRoom.p2Choice = rpschoice;
+      }
     }
 
     console.log(currentRoom);
@@ -362,7 +369,7 @@ io.on("connection", (socket) => {
     if (rpschoice !== undefined) {
       addMove(rpschoice, tournamentId, player);
     }
-    
+
     // ✅ Only declare winner once BOTH players have made a submission — including null
     const p1HasPlayed = currentRoom.p1Choice !== undefined;
     const p2HasPlayed = currentRoom.p2Choice !== undefined;
