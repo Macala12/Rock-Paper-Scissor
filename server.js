@@ -321,11 +321,11 @@ io.on("connection", (socket) => {
       }
     }else{
       if (currentRoom.p1 === player) {
-        currentRoom.p1Choice = rpschoice;
-        console.log(`updated ${player} choice: ${rpschoice}`)
+        currentRoom.p1Choice = rpschoice === "" ? null : rpschoice;
+        console.log(`updated ${player} choice: ${currentRoom.p1Choice}`);
       } else if (currentRoom.p2 === player) {
-        currentRoom.p2Choice = rpschoice;
-        console.log(`updated ${player} choice: ${rpschoice}`)
+        currentRoom.p2Choice = rpschoice === "" ? null : rpschoice;
+        console.log(`updated ${player} choice: ${currentRoom.p2Choice}`);
       }
     }
 
