@@ -29,8 +29,8 @@
 
 body {
   /* position: relative; */
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background-image: radial-gradient(at top, #FFC107, #FFC107);
   overflow: hidden;
 }
@@ -402,7 +402,7 @@ body {
   background-color: #00000094;
   display: none;
   width: 100.06%;
-  height: 100vh;
+  height: 100%;
 }
 .animation{
   position: absolute;
@@ -422,7 +422,7 @@ body {
 }
 
 .result__board {
-  position: absolute;
+  /* position: absolute; */
   /* top: 50%;
   left: 50%;
   transform: translate(-50%, -50%); */
@@ -432,7 +432,7 @@ body {
   height: fit-content;
   row-gap: 10px;
   max-width: 1000px;
-  padding: 20px   ;
+  padding: 20px;
   margin: 2.5rem auto;
   width: 100%;
 }

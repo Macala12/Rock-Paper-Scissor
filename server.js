@@ -308,7 +308,7 @@ io.on("connection", (socket) => {
   });
 
   // 🔹 Player choice
-  socket.on("p1Choice", ({ tournamentId, roomID, player, rpschoice }) => {
+  socket.on("p1Choice", ({ tournamentId, rpschoice, roomID, player }) => {
     const { rooms, lastMoves } = getTournament(tournamentId);
     const currentRoom = rooms.find((room) => room.room_id === roomID);
     if (!currentRoom) return;
@@ -332,7 +332,18 @@ io.on("connection", (socket) => {
     if (rpschoice !== undefined) {
       addMove(rpschoice, tournamentId, player);
     }
-    return declareWinner(tournamentId, roomID, player, socket);
+
+    // ✅ Only declare winner once BOTH players have made a submission — including null
+    const p1HasPlayed = currentRoom.p1Choice !== undefined;
+    const p2HasPlayed = currentRoom.p2Choice !== undefined;
+
+    if (p1HasPlayed && p2HasPlayed) {
+      // Make sure we only call declareWinner once per round
+      if (!currentRoom.roundResolved) {
+        currentRoom.roundResolved = true;
+        return declareWinner(tournamentId, roomID, player, socket);
+      }
+    }
   });
 
   socket.on("p2Choice", ({ tournamentId, roomID, player, rpschoice }) => {
@@ -351,7 +362,18 @@ io.on("connection", (socket) => {
     if (rpschoice !== undefined) {
       addMove(rpschoice, tournamentId, player);
     }
-    return declareWinner(tournamentId, roomID, player, socket);
+    
+    // ✅ Only declare winner once BOTH players have made a submission — including null
+    const p1HasPlayed = currentRoom.p1Choice !== undefined;
+    const p2HasPlayed = currentRoom.p2Choice !== undefined;
+
+    if (p1HasPlayed && p2HasPlayed) {
+      // Make sure we only call declareWinner once per round
+      if (!currentRoom.roundResolved) {
+        currentRoom.roundResolved = true;
+        return declareWinner(tournamentId, roomID, player, socket);
+      }
+    }
   });
 
   // 🔹 Player clicked rematch (fixed)
