@@ -339,7 +339,7 @@ io.on("connection", (socket) => {
     const p1HasPlayed = currentRoom.p1Choice !== undefined;
     const p2HasPlayed = currentRoom.p2Choice !== undefined;
 
-    if (p1HasPlayed && p2HasPlayed) {
+    if (p1HasPlayed && p2HasPlayed || !p1HasPlayed && !p2HasPlayed || !p1HasPlayed || !p2HasPlayed) {
       // Make sure we only call declareWinner once per round
       return declareWinner(tournamentId, roomID, player, socket);
     }
