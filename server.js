@@ -319,7 +319,7 @@ io.on("connection", (socket) => {
       } else if (currentRoom.p2 === player) {
         currentRoom.p2Choice = currentRoom.p2Choice;
       }
-    }else{
+    } else {
       if (currentRoom.p1 === player) {
         currentRoom.p1Choice = rpschoice === "" ? null : rpschoice;
         console.log(`updated ${player} choice: ${currentRoom.p1Choice}`);
@@ -335,14 +335,29 @@ io.on("connection", (socket) => {
       addMove(rpschoice, tournamentId, player);
     }
 
-    // ✅ Only declare winner once BOTH players have made a submission — including null
     const p1HasPlayed = currentRoom.p1Choice !== undefined;
     const p2HasPlayed = currentRoom.p2Choice !== undefined;
 
-    if (p1HasPlayed && p2HasPlayed || !p1HasPlayed && !p2HasPlayed || !p1HasPlayed || !p2HasPlayed) {
-      // Make sure we only call declareWinner once per round
+    if (p1HasPlayed && p2HasPlayed) {
+      // Both players have played — proceed immediately
       return declareWinner(tournamentId, roomID, player, socket);
+    } else {
+      // If one player hasn't played, wait for 3 seconds
+      setTimeout(() => {
+        const p1StillPlayed = currentRoom.p1Choice !== undefined;
+        const p2StillPlayed = currentRoom.p2Choice !== undefined;
+
+        // If after 3 seconds one player still hasn't played, force declareWinner
+        if (p1StillPlayed && p2StillPlayed) {
+          // both played in the meantime
+          return;
+        } else {
+          console.log("⏳ One player didn't respond in time. Declaring winner by default...");
+          declareWinner(tournamentId, roomID, player, socket);
+        }
+      }, 2000);
     }
+
   });
 
   socket.on("p2Choice", ({ tournamentId, roomID, player, rpschoice }) => {
