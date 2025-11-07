@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 import { fileURLToPath } from "url"; 
 import path from "path"; 
 import { Server } from "socket.io";
@@ -73,7 +75,7 @@ app.get("/api/end", async (req, res) => {
         return res.status(400).json({ error: "Missing tournamentId" });
       }
 
-      const result = endTournament(tournamentId);
+      const result = await endTournament(tournamentId);
 
       if (!result.success) {
         return res.status(404).json({ error: result.message });
@@ -96,10 +98,9 @@ const server = app.listen(PORT, () => {
 
 const io = new Server(server);
 
-mongoose.connect("mongodb+srv://michael-user-1:Modubass1212@assetron.tdmvued.mongodb.net/octagames")
+mongoose.connect(`mongodb+srv://${process.env.MONGODB_URL}`)
 .then(() => {
   console.log("MongoDB Connected");
-  // hardcoded();
 })
 .catch(err => console.log("DB Connection Error:", err));
 
@@ -139,7 +140,7 @@ function shuffleArray(array) {
   return shuffled;
 }
 
-function createRound(players, tournamentId) {
+async function createRound(players, tournamentId) {
   const tournament = getTournament(tournamentId);
   if (!tournament) {
     return { success: false, message: "Tournament not found" };
@@ -249,7 +250,7 @@ io.on("connection", (socket) => {
 
         // If they were previously occupied, mark them as free
         if (status === "occupied") {
-          allPlayers.set(player, "free");
+          allPlayers.set(player, "waiting");
           console.log(`♻️ ${player}'s old room (${roomID}) not found — marked as free.`);
           socket.emit("waitingNewPlayer"); // frontend can start rematch flow
           return;
@@ -361,7 +362,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("p2Choice", ({ tournamentId, roomID, player, rpschoice }) => {
-    const { rooms, lastMoves } = getTournament(tournamentId);
+   const { rooms, lastMoves } = getTournament(tournamentId);
     const currentRoom = rooms.find((room) => room.room_id === roomID);
     if (!currentRoom) return;
 
@@ -371,11 +372,13 @@ io.on("connection", (socket) => {
       } else if (currentRoom.p2 === player) {
         currentRoom.p2Choice = currentRoom.p2Choice;
       }
-    }else{
+    } else {
       if (currentRoom.p1 === player) {
-        currentRoom.p1Choice = rpschoice;
+        currentRoom.p1Choice = rpschoice === "" ? null : rpschoice;
+        console.log(`updated ${player} choice: ${currentRoom.p1Choice}`);
       } else if (currentRoom.p2 === player) {
-        currentRoom.p2Choice = rpschoice;
+        currentRoom.p2Choice = rpschoice === "" ? null : rpschoice;
+        console.log(`updated ${player} choice: ${currentRoom.p2Choice}`);
       }
     }
 
@@ -385,17 +388,29 @@ io.on("connection", (socket) => {
       addMove(rpschoice, tournamentId, player);
     }
 
-    // ✅ Only declare winner once BOTH players have made a submission — including null
     const p1HasPlayed = currentRoom.p1Choice !== undefined;
     const p2HasPlayed = currentRoom.p2Choice !== undefined;
 
     if (p1HasPlayed && p2HasPlayed) {
-      // Make sure we only call declareWinner once per round
-      if (!currentRoom.roundResolved) {
-        currentRoom.roundResolved = true;
-        return declareWinner(tournamentId, roomID, player, socket);
-      }
+      // Both players have played — proceed immediately
+      return declareWinner(tournamentId, roomID, player, socket);
+    } else {
+      // If one player hasn't played, wait for 3 seconds
+      setTimeout(() => {
+        const p1StillPlayed = currentRoom.p1Choice !== undefined;
+        const p2StillPlayed = currentRoom.p2Choice !== undefined;
+
+        // If after 3 seconds one player still hasn't played, force declareWinner
+        if (p1StillPlayed && p2StillPlayed) {
+          // both played in the meantime
+          return;
+        } else {
+          console.log("⏳ One player didn't respond in time. Declaring winner by default...");
+          declareWinner(tournamentId, roomID, player, socket);
+        }
+      }, 2000);
     }
+
   });
 
   // 🔹 Player clicked rematch (fixed)
@@ -529,7 +544,7 @@ function addMove(choice, tournamentId, player) {
 }
 
 const declareWinner = async (tournamentId, roomID, player, socket) => {
-  const { rooms, allPlayers } = getTournament(tournamentId);
+  const { rooms, allPlayers, pendingRematch } = getTournament(tournamentId);
   let winner;
   const currentRoom = rooms.find((room) => room.room_id === roomID);
   if (!currentRoom) return;
@@ -550,29 +565,31 @@ const declareWinner = async (tournamentId, roomID, player, socket) => {
     winner = currentRoom.p2Choice === "rock" ? currentRoom.p2 : currentRoom.p1;
   }
 
-  try {
-    if (winner !== "draw" && !currentRoom.hasUpdatedLeaderboard) {
-      const updatescore = await Leaderboard.findOneAndUpdate(
-        { leaderboardId: tournamentId, username: winner },
-        { $inc: { score: 3 } },
-        { new: true }
-      );
-      if (updatescore) {
-        console.log(`Updated Score for ${winner}`);
-      }
-    }else{
-      socket.emit("alreadyUpdated");
-    }
-  } catch (err) {
-    console.error("Error updating winner:", err);
-  }
-
-  if (winner !== "draw" || !winner) { // Add !== player to this place
-    allPlayers.set(player, "free");
+  if (winner && winner !== "draw" && !currentRoom.hasUpdatedLeaderboard) {
+    const updatescore = await Leaderboard.findOneAndUpdate(
+      { leaderboardId: tournamentId, username: winner },
+      { $inc: { score: 3 } },
+      { new: true }
+    );
+    if (updatescore) console.log(`Updated Score for ${winner}`);
     currentRoom.hasUpdatedLeaderboard = true;
   }
 
-  return io.sockets.to(roomID).emit("winner", { winner, currentRoom });
+  io.sockets.to(roomID).emit("winner", { winner, currentRoom });
+
+  // Identify loser
+  const loser = winner === currentRoom.p1 ? currentRoom.p2 : currentRoom.p1;
+
+  // Mark loser as waiting for rematch
+  if (loser) {
+    allPlayers.set(loser, "waiting");
+    pendingRematch.set(loser, { socketId: socket.id, roomID });
+  }
+
+  // Winner stays occupied or can be freed based on your tournament flow
+  if (winner) {
+    allPlayers.set(winner, "free"); // or "free" if round is over
+  }
 };
 
 function getRandomFreeUser(players) {
