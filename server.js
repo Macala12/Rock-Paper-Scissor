@@ -456,9 +456,9 @@ io.on("connection", (socket) => {
     try {
       createRoom(tournamentId, newroomID, roomID, opponent, player1, socket);
 
-      // 🧹 Clean up old room
+      // Remove old rooms for both players
       if (Array.isArray(tournament.rooms)) {
-        tournament.rooms = tournament.rooms.filter(r => r.room_id !== roomID);
+        tournament.rooms = tournament.rooms.filter(r => r.room_id !== roomID && r.room_id !== opponentData.roomID);
       }
 
       console.log(`🧹 Removed old room ${roomID} from tournament ${tournamentId}`);
@@ -545,7 +545,7 @@ function addMove(choice, tournamentId, player) {
 }
 
 const declareWinner = async (tournamentId, roomID, player, socket) => {
-  const { rooms, allPlayers, pendingRematch } = getTournament(tournamentId);
+  const { rooms } = getTournament(tournamentId);
   let winner;
   const currentRoom = rooms.find((room) => room.room_id === roomID);
   if (!currentRoom) return;
@@ -566,30 +566,24 @@ const declareWinner = async (tournamentId, roomID, player, socket) => {
     winner = currentRoom.p2Choice === "rock" ? currentRoom.p2 : currentRoom.p1;
   }
 
-  if (winner && winner !== "draw" && !currentRoom.hasUpdatedLeaderboard) {
-    const updatescore = await Leaderboard.findOneAndUpdate(
-      { leaderboardId: tournamentId, username: winner },
-      { $inc: { score: 3 } },
-      { new: true }
-    );
-    if (updatescore) console.log(`Updated Score for ${winner}`);
-    currentRoom.hasUpdatedLeaderboard = true;
+  if (winner && winner !== "draw" && winner === player && !currentRoom.hasUpdatedLeaderboard) {
+    try {
+      const updatescore = await Leaderboard.findOneAndUpdate(
+        { leaderboardId: tournamentId, username: winner },
+        { $inc: { score: 3 } },
+        { new: true }
+      );
+      if (updatescore) console.log(`✅ Updated Score for ${winner}`);
+      currentRoom.hasUpdatedLeaderboard = true;
+
+    } catch (err) {
+      console.error("Error updating winner:", err);
+      currentRoom.hasUpdatedLeaderboard = false; // rollback lock on failure
+    }
+    io.sockets.to(roomID).emit("winner", { winner, currentRoom });
   }
-
-  io.sockets.to(roomID).emit("winner", { winner, currentRoom });
-
-  // Identify loser
-  const loser = winner === currentRoom.p1 ? currentRoom.p2 : currentRoom.p1;
-
-  // Mark loser as waiting for rematch
-  if (loser) {
-    allPlayers.set(loser, "waiting");
-    pendingRematch.set(loser, { socketId: socket.id, roomID });
-  }
-
-  // Winner stays occupied or can be freed based on your tournament flow
-  if (winner) {
-    allPlayers.set(winner, "free"); // or "free" if round is over
+  else if (currentRoom.hasUpdatedLeaderboard) {
+    io.sockets.to(roomID).emit("winner", { winner, currentRoom });
   }
 };
 
