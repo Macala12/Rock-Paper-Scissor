@@ -14,7 +14,7 @@ import cors from "cors";
 const app = express();
 
 app.use(cors({
-  origin: ["https://octagames.ng",  "https://www.octagames.ng", "http://localhost:3000"],  // or "*" to allow all
+  origin: ["https://octagames.ng",  "https://www.octagames.ng"],  // or "*" to allow all
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
@@ -107,10 +107,10 @@ mongoose.connect(`mongodb+srv://${process.env.MONGODB_URL}`)
 
 //Hardcoded
 async function hardcoded() {
-  const players = await fetchPlayers("68dd869c8c9854acf5ad1a1d");
+  const players = await fetchPlayers("690134138913e5fbebf491e5");
 
   if (players.success) {
-    const result = createRound(players.players, "68dd869c8c9854acf5ad1a1d");
+    const result = createRound(players.players, "690134138913e5fbebf491e5");
 
     if (result.success) {
       console.log(result.rooms);
@@ -581,9 +581,11 @@ const declareWinner = async (tournamentId, roomID, player, socket) => {
       currentRoom.hasUpdatedLeaderboard = false; // rollback lock on failure
     }
     io.sockets.to(roomID).emit("winner", { winner, currentRoom });
-  }
-  else if (currentRoom.hasUpdatedLeaderboard) {
+  } else if (currentRoom.hasUpdatedLeaderboard) {
     io.sockets.to(roomID).emit("winner", { winner, currentRoom });
+  } else if (!winner || winner === null) {
+      currentRoom.hasUpdatedLeaderboard = true;
+      io.sockets.to(roomID).emit("winner", { winner, currentRoom });
   }
 };
 
