@@ -590,6 +590,9 @@ const declareWinner = async (tournamentId, roomID, player, socket) => {
     io.sockets.to(roomID).emit("winner", { winner, currentRoom });
   } else if (currentRoom.hasUpdatedLeaderboard) {
     io.sockets.to(roomID).emit("winner", { winner, currentRoom });
+  }else if (winner || winner === "draw") {
+      currentRoom.hasUpdatedLeaderboard = true;
+      io.sockets.to(roomID).emit("winner", { winner, currentRoom });
   } else if (!winner || winner === null) {
       currentRoom.hasUpdatedLeaderboard = true;
       io.sockets.to(roomID).emit("winner", { winner, currentRoom });
