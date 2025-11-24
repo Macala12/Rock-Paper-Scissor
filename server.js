@@ -106,12 +106,13 @@ mongoose.connect(`mongodb+srv://${process.env.MONGODB_URL}`)
 .catch(err => console.log("DB Connection Error:", err));
 
 //Hardcoded
-async function hardcoded() {
-  const players = await fetchPlayers("690134138913e5fbebf491e5");
+async function hardcoded() {  
+  const players = await fetchPlayers("6923aef750a6220484ae820a");
 
-  if (players.success) {
-    const result = createRound(players.players, "690134138913e5fbebf491e5");
-
+  if (players.success) {    
+    const result = createRound(players.players, "6923aef750a6220484ae820a");
+    console.log(result);
+    
     if (result.success) {
       console.log(result.rooms);
     }
@@ -550,6 +551,9 @@ const declareWinner = async (tournamentId, roomID, player, socket) => {
   const currentRoom = rooms.find((room) => room.room_id === roomID);
   if (!currentRoom) return;
 
+  console.log('Declaring Winner');
+  
+
   if (currentRoom.p1Choice === undefined && currentRoom.p2Choice === undefined) {
     winner = null; // no winner
   } else if (!currentRoom.p1Choice || currentRoom.p1Choice === "null") {
@@ -566,7 +570,11 @@ const declareWinner = async (tournamentId, roomID, player, socket) => {
     winner = currentRoom.p2Choice === "rock" ? currentRoom.p2 : currentRoom.p1;
   }
 
-  if (winner && winner !== "draw" && winner === player && !currentRoom.hasUpdatedLeaderboard) {
+  console.log(winner, player);
+  
+
+  if (winner && winner !== "draw" && !currentRoom.hasUpdatedLeaderboard) {
+    currentRoom.hasUpdatedLeaderboard = true;
     try {
       const updatescore = await Leaderboard.findOneAndUpdate(
         { leaderboardId: tournamentId, username: winner },
@@ -574,7 +582,6 @@ const declareWinner = async (tournamentId, roomID, player, socket) => {
         { new: true }
       );
       if (updatescore) console.log(`✅ Updated Score for ${winner}`);
-      currentRoom.hasUpdatedLeaderboard = true;
 
     } catch (err) {
       console.error("Error updating winner:", err);
