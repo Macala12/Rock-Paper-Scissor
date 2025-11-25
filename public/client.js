@@ -226,6 +226,7 @@ const joinRoom = () => {
 
 const countdownToResult = (futureTime, opponent) => {
   console.log("Server futureTime:", futureTime);
+  alert(futureTime);
   console.log("Client now:", Date.now());
   console.log("Difference:", (futureTime - Date.now())/1000);
 
