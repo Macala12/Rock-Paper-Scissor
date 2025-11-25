@@ -296,7 +296,7 @@ socket.on("playersConnected", (data) => {
       gameFooter.classList.add("flex");
       user.innerHTML = player;
       opponent.innerHTML = opponentUsername;
-      countdownToResult(timer, data.opponent)
+      countdownToResult(timer, data.opponent);
     }
   }, 1000);
 });

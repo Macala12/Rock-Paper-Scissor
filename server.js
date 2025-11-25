@@ -274,7 +274,8 @@ io.on("connection", (socket) => {
       allPlayers.set(player, "occupied");
 
       if (!existingRoom.endTime) {
-        existingRoom.endTime = Date.now() + 15 * 1000; // 15 seconds from now
+        existingRoom.endTime = Date.now() + 15 * 1000;
+        console.log(`${player} Creating new endTime ${existingRoom.endTime}`);
       }
 
       opponent = existingRoom.p1 === player ? existingRoom.p2 : existingRoom.p1;
