@@ -227,7 +227,7 @@ const joinRoom = () => {
 const countdownToResult = (futureTime, opponent) => {
   console.log("Server futureTime:", futureTime);
   alert(futureTime);
-  console.log("Client now:", Date.now());
+  alert("Client now:", Date.now());
   alert("Difference:", (futureTime - Date.now())/1000);
 
   let counter = Math.ceil((futureTime - Date.now()) / 1000); // convert ms diff to seconds
